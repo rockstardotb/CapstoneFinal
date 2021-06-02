@@ -1,3 +1,6 @@
+tensorflow
+keras
 python-opencv
 imutils
+
 
