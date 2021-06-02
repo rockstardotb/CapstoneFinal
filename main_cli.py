@@ -37,7 +37,10 @@ def detect_face(image):
     faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + cascPath)
 
     # Read the image
-    image = ((image + 1) * 255 / 2).round()
+        
+    image = cv2.normalize(image, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)#((image + 1) * 225 / 2).round()
+    image = image.astype(np.uint8)
+
     gray = cv2.cvtColor(np.uint8(image), cv2.COLOR_BGR2GRAY)
 
     # Detect faces in the image
@@ -56,7 +59,8 @@ def detect_face(image):
     if len(faces)==0:
         orig_faces.append([face,(1,1,1,1)])
     for (x, y, w, h) in faces:
-        face = image[x:x+w][y:y+h]
+        face = image[x:x+w, y:y+h]
+
         if face is None:
             orig_faces.append([[], (x, y, x+w, y+h)])
         else:
@@ -67,7 +71,7 @@ def detect_face(image):
 #####
 import time
 iters = 15000
-batch_size = 16
+batch_size = 1
 
 RES_DIR = 'res2'
 FILE_PATH = '%s/generated_%d.png'
@@ -81,52 +85,63 @@ start = 0
 d_losses = []
 a_losses = []
 images_saved = 0
+
+#gan.load_weights("/gan.h5")
+
+#images = images[:2]
+
 for step in range(iters):
     start_time = time.time()
     latent_vectors = np.random.normal(size=(batch_size, LATENT_DIM))
      
-    real = images[start:start + batch_size]
+    real = images.copy()[:2]#[np.random.choice(len(images), size=batch_size, replace=False)]#images[start:start + batch_size]
     orig = real.copy()
     orig_faces = []
     for img in orig:
         detect_face(img)
-        
+
     faces = [face for face, coord in orig_faces if len(face) != 0]
     coords = [coord for face, coord in orig_faces if len(face) != 0]
     
     random_faces = orig_faces.copy()
-    np.random.shuffle(random_faces)
+    random_faces = [random_faces[1], random_faces[0]]
+    #np.random.shuffle(random_faces)
     
     rand_faces = [face for face, coord in random_faces if len(face) != 0]
     rand_coords = [coord for face, coord in random_faces if len(face) != 0]
-    
+
     ######
     for face in range(len(faces)):
         src = faces[face]
-        new = rand_faces[face]
-                
+        new = rand_faces[face]       
+        
+        x1,y1,x2,y2 = coords[face]
         #calculate the 50 percent of original dimensions
-        width = int(src.shape[1])
-        height = int(src.shape[0])
+        width = int(orig[face][x1:x2, y1:y2].shape[1])
+        height = int(orig[face][x1:x2, y1:y2].shape[0])
 
         # dsize
         dsize = (width, height)
 
         # resize image
         output = cv2.resize(new, dsize)
-        
-        output = np.array(output, dtype="uint8")
+
+        #output = np.array(output, dtype="uint8")
         
         rand_faces[face] = output
-        x1,y1,x2,y2 = coords[face]
+        #x1,y1,x2,y2 = coords[face]
         #faces[face] = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
         
-        faces[face][x1:x2][y1:y2] = output[0]
+        output = cv2.normalize(output, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        output = output.astype(np.float32)
+        orig[face][x1:x2, y1:y2] = output
+    
         faces[face] = cv2.resize(faces[face], (12, 12)).flatten().reshape(1,-1)
-    ######
-    generated = generator.predict(faces)
 
-    real = images[start:start + batch_size]
+    ###### 
+    generated = generator.predict(faces[0])
+
+    real = [np.random.choice(len(images), size=batch_size, replace=False)]#images[start:start + batch_size]
     combined_images = np.concatenate([generated, real])
 
     labels = np.concatenate([np.ones((1, 1)), np.zeros((batch_size, 1))])
@@ -145,7 +160,7 @@ for step in range(iters):
     if start > images.shape[0] - batch_size:
         start = 0
 
-    if step % 50 == 49:
+    if step % 8 == 0:#49:
         gan.save_weights('/gan.h5')
 
         plt.figure(1, figsize=(10, 10))
@@ -157,15 +172,17 @@ for step in range(iters):
     
         print('%d/%d: d_loss: %.4f,  a_loss: %.4f.  (%.1f sec)' % (step + 1, iters, d_loss, a_loss, time.time() - start_time))
 
-        control_image = np.zeros((WIDTH * CONTROL_SIZE_SQRT, HEIGHT * CONTROL_SIZE_SQRT, CHANNELS))
-        control_generated = generator.predict(control_vectors)
+        #control_image = np.zeros((WIDTH * CONTROL_SIZE_SQRT, HEIGHT * CONTROL_SIZE_SQRT, CHANNELS))
+        #control_generated = generator.predict(control_vectors)
         
-        for i in range(CONTROL_SIZE_SQRT ** 2):
-            x_off = i % CONTROL_SIZE_SQRT
-            y_off = i // CONTROL_SIZE_SQRT
-            control_image[x_off * WIDTH:(x_off + 1) * WIDTH, y_off * HEIGHT:(y_off + 1) * HEIGHT, :] = control_generated[i, :, :, :]
-        im = Img.fromarray(np.uint8(control_image * 255))#.save(StringIO(), 'jpeg')
-        im.save(FILE_PATH % (RES_DIR, images_saved))
-        images_saved += 1
+        #for i in range(CONTROL_SIZE_SQRT ** 2):
+        #    x_off = i % CONTROL_SIZE_SQRT
+        #    y_off = i // CONTROL_SIZE_SQRT
+        #    control_image[x_off * WIDTH:(x_off + 1) * WIDTH, y_off * HEIGHT:(y_off + 1) * HEIGHT, :] = control_generated[i, :, :, :]
+        #im = Img.fromarray(np.uint8(control_image * 255))#.save(StringIO(), 'jpeg')
+        #im.save(FILE_PATH % (RES_DIR, images_saved))
+        #images_saved += 1
+
+
 #####
 
