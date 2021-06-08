@@ -64,9 +64,9 @@ For the CPU-only image:
 
 ```sh
 # Run the image built locally:
-docker run --rm -v ./:/app/ -p 8888:8888 -it kaggle/python-build /bin/bash
+docker run --rm -v $(pwd):/app/ -p 8888:8888 -it kaggle/python-build /bin/bash
 # Run the pre-built image from gcr.io
-docker run --rm -v ./:/app/ -p 8888:8888 -it gcr.io/kaggle-images/python /bin/bash
+docker run --rm -v $(pwd):/app/ -p 8888:8888 -it gcr.io/kaggle-images/python /bin/bash
 # Once inside the container, run jupyter-notebook
 jupyter-notebook --ip=0.0.0.0 --allow-root
 ```
@@ -75,9 +75,9 @@ For the GPU image:
 
 ```sh
 # Run the image built locally:
-docker run --runtime nvidia --rm -v ./:/app/ -p 8888:8888 -it kaggle/python-gpu-build /bin/bash
+docker run --runtime nvidia --rm -v $(pwd):/app/ -p 8888:8888 -it kaggle/python-gpu-build /bin/bash
 # Run the image pre-built image from gcr.io
-docker run --runtime nvidia --rm -v ./:/app/ -p 8888:8888 -it gcr.io/kaggle-gpu-images/python /bin/bash
+docker run --runtime nvidia --rm -v $(pwd):/app/ -p 8888:8888 -it gcr.io/kaggle-gpu-images/python /bin/bash
 # Once inside the container, run jupyter-notebook
 jupyter-notebook --ip=0.0.0.0 --allow-root
 ```
